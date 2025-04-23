@@ -1,5 +1,5 @@
-const http = require('http');
-const port = 3000;
+const http = require('node:http');
+const port = 3001;
 
 let movies = [
   { id: 1, title: "Wild Is the Wind", year: 2022, director: "Fabian Medea" },
@@ -48,15 +48,15 @@ const server = http.createServer((req, res) => {
   req.on('end', () => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
 
-    if (method === 'GET') {
+    if (req.method === 'GET') {
       res.end(JSON.stringify(data));
-    } else if (method === 'POST') {
+    } else if (req.method === 'POST') {
       const newItem = JSON.parse(body);
       newItem.id = data.length ? data[data.length - 1].id + 1 : 1;
       data.push(newItem);
       setData(url, data);
       res.end(JSON.stringify(data));
-    } else if (method === 'PUT') {
+    } else if (req.method === 'PUT') {
       const updatedItem = JSON.parse(body);
       const index = data.findIndex(item => item.id === updatedItem.id);
       if (index !== -1) {
@@ -67,7 +67,7 @@ const server = http.createServer((req, res) => {
         res.writeHead(404);
         res.end(JSON.stringify({ message: 'Item not found' }));
       }
-    } else if (method === 'DELETE') {
+    } else if (req.method === 'DELETE') {
       const { id } = JSON.parse(body);
       const filteredData = data.filter(item => item.id !== id);
       setData(url, filteredData);
