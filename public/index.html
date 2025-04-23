@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mock Media Server API</title>
+</head>
+<body>
+  <h1>Mock Media Server API</h1>
+  <p>Welcome! This API serves Movies, Series, and Songs data.</p>
+  <h2>Available Endpoints:</h2>
+  <ul>
+    <li>GET /movies, /series, /songs - Retrieve data</li>
+    <li>POST /movies, /series, /songs - Add new item</li>
+    <li>PUT /movies, /series, /songs - Update item (send full object with existing ID)</li>
+    <li>DELETE /movies, /series, /songs - Delete item (send JSON with { id })</li>
+  </ul>
+  <h3>Example Data Format (POST/PUT)</h3>
+  <pre>
+{
+  "title": "Example Title",
+  "year": 2024,
+  "artist": "Some Artist"
+}
+  </pre>
+</body>
+</html>

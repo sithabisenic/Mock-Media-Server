@@ -1,42 +1,31 @@
-const http = require('node:http');
-const port = 3001;
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const { initDataFile, readData, writeData } = require('./utils/fileHandler');
 
-let movies = [
-  { id: 1, title: "Wild Is the Wind", year: 2022, director: "Fabian Medea" },
-  { id: 2, title: "I Am All Girls", year: 2001, director: "Donovan Marsh" },
-  { id: 3, title: "Lobola Man", year: 2024, director: "Thabang Moleya" }
-];
-
-let series = [
-  { id: 1, title: "Blood & Water", year: 2020, creator: "Nosipho Dumisa", season: 4 },
-  { id: 2, title: "Queen Sono", year: 2020, creator: "Kagiso Lediga", season: 1 },
-  { id: 3, title: "Kings of Jo'Burg", year: 2020, creator: "Shona Ferguson", season: 2 }
-];
-
-let songs = [
-  { id: 1, title: "Water", year: 2023, artist: "Tyla" },
-  { id: 2, title: "Imithandazo", year: 2024, artist: "Kabza De Small" },
-  { id: 3, title: "Umbayimbayi", year: 2023, artist: "Inkabi Zezwe" }
-];
-
-function getData(url) {
-  if (url === '/movies') return movies;
-  if (url === '/series') return series;
-  if (url === '/songs') return songs;
-  return null;
-}
-
-function setData(url, data) {
-  if (url === '/movies') movies = data;
-  if (url === '/series') series = data;
-  if (url === '/songs') songs = data;
-}
+const port = 3000;
+initDataFile();
 
 const server = http.createServer((req, res) => {
   const { url, method } = req;
-  let data = getData(url);
 
-  if (!data) {
+  // Serve API doc HTML on root path
+  if (url === '/' && method === 'GET') {
+    const htmlPath = path.join(__dirname, 'public', 'index.html');
+    fs.readFile(htmlPath, (err, content) => {
+      if (err) {
+        res.writeHead(500);
+        res.end('Server Error');
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(content);
+    });
+    return;
+  }
+
+  const validPaths = ['/movies', '/series', '/songs'];
+  if (!validPaths.includes(url)) {
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ message: '404 Not Found' }));
     return;
@@ -44,45 +33,49 @@ const server = http.createServer((req, res) => {
 
   let body = '';
   req.on('data', chunk => body += chunk);
-
   req.on('end', () => {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
+    const db = readData();
+    let collection = db[url.slice(1)];
 
-    if (req.method === 'GET') {
-      res.end(JSON.stringify(data));
-    } else if (req.method === 'POST') {
+    if (method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(collection));
+    } else if (method === 'POST') {
       const newItem = JSON.parse(body);
-      newItem.id = data.length ? data[data.length - 1].id + 1 : 1;
-      data.push(newItem);
-      setData(url, data);
-      res.end(JSON.stringify(data));
-    } else if (req.method === 'PUT') {
+      newItem.id = collection.length ? collection[collection.length - 1].id + 1 : 1;
+      collection.push(newItem);
+      db[url.slice(1)] = collection;
+      writeData(db);
+      res.writeHead(201, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(collection));
+    } else if (method === 'PUT') {
       const updatedItem = JSON.parse(body);
-      const index = data.findIndex(item => item.id === updatedItem.id);
+      const index = collection.findIndex(item => item.id === updatedItem.id);
       if (index !== -1) {
-        data[index] = updatedItem;
-        setData(url, data);
-        res.end(JSON.stringify(data));
+        collection[index] = updatedItem;
+        db[url.slice(1)] = collection;
+        writeData(db);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(collection));
       } else {
         res.writeHead(404);
         res.end(JSON.stringify({ message: 'Item not found' }));
       }
-    } else if (req.method === 'DELETE') {
+    } else if (method === 'DELETE') {
       const { id } = JSON.parse(body);
-      const filteredData = data.filter(item => item.id !== id);
-      setData(url, filteredData);
-      res.end(JSON.stringify(filteredData));
+      const newCollection = collection.filter(item => item.id !== id);
+      db[url.slice(1)] = newCollection;
+      writeData(db);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(newCollection));
     } else {
       res.writeHead(405);
-      res.end(JSON.stringify({ message: 'Method not permitted' }));
+      res.end(JSON.stringify({ message: 'Method not allowed' }));
     }
   });
 });
 
-server.listen(port, '0.0.0.0', error => {
-  if (error) {
-    console.log('Something went wrong:', error);
-  } else {
-    console.log(`Mock Media Server running on http://localhost:${port}`);
-  }
+server.listen(port, () => {
+  console.log(`Mock Media Server running at http://localhost:${port}`);
 });
+
